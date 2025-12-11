@@ -53,14 +53,10 @@ from reloading import reloading
 # 导入装饰器后再次确保修补（防止模块被重新加载）
 if sys.platform == "win32":
     patch_reloading_module()
-from selenium.webdriver import Chrome, Edge
+from selenium.webdriver import Chrome, Edge, chrome, edge
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service as edge_service
-from selenium.webdriver.chrome.options import Options as edge_options
-from selenium.webdriver.edge.service import Service as chrome_service
-from selenium.webdriver.edge.options import Options as chrome_options
 from openai import OpenAI
 
 from secret import api_key
@@ -72,27 +68,26 @@ provider = ["deepseek", "siliconflow"][1]  # 切换平台, 须在config.json文�
 base_url = config[provider]["base_url"]
 model_name = config[provider]["model_name"]
 brower = input("浏览器选择 (默认Edge，输入0使用Chrome):")
-if brower == 0:
+if brower.strip() == "0":
     print("正在启动Chrome")
-
-    options = chrome_options()
+    options = chrome.options.Options()
     options.add_argument("--disable-logging")
     options.add_argument("--log-level=OFF")
-    # 使用本地的 msedgedriver.exe
+    # 使用本地的 chromedriver.exe
     driver_path = os.path.join(os.path.dirname(__file__), "chromedriver.exe")
     driver = Chrome(
-        service=chrome_service(executable_path=driver_path, log_path="nul"),
+        service=chrome.service.Service(executable_path=driver_path, log_path="nul"),
         options=options,
     )
 else:
     print("正在启动Edge")
-    options = edge_options()
+    options = edge.options.Options()
     options.add_argument("--disable-logging")
     options.add_argument("--log-level=OFF")
     # 使用本地的 msedgedriver.exe
     driver_path = os.path.join(os.path.dirname(__file__), "msedgedriver.exe")
     driver = Edge(
-        service=edge_service(executable_path=driver_path, log_path="nul"),
+        service=edge.service.Service(executable_path=driver_path, log_path="nul"),
         options=options,
     )
 
