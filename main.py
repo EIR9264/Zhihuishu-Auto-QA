@@ -5,56 +5,62 @@ import json
 import os
 import io
 import random
+
 # 设置默认编码为 UTF-8，解决 Windows 上的编码问题
-if sys.platform == 'win32':
+if sys.platform == "win32":
     import locale
+
     # 设置标准输入输出编码
-    if sys.stdout.encoding != 'utf-8':
-        sys.stdout.reconfigure(encoding='utf-8')
-    if sys.stderr.encoding != 'utf-8':
-        sys.stderr.reconfigure(encoding='utf-8')
+    if sys.stdout.encoding != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8")
+    if sys.stderr.encoding != "utf-8":
+        sys.stderr.reconfigure(encoding="utf-8")
     # 设置环境变量，让文件读取使用 UTF-8
-    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    os.environ["PYTHONIOENCODING"] = "utf-8"
 # 修复 reloading 库在 Windows 上的编码问题（必须在导入 reloading 装饰器之前执行）
-if sys.platform == 'win32':
+if sys.platform == "win32":
     import importlib
-    
+
     def patch_reloading_module():
         """修补 reloading 模块的 load_file 函数"""
         try:
             # 导入 reloading.reloading 模块
-            reloading_module = importlib.import_module('reloading.reloading')
+            reloading_module = importlib.import_module("reloading.reloading")
             # 替换 load_file 函数为使用 UTF-8 编码的版本
-            if hasattr(reloading_module, 'load_file'):
+            if hasattr(reloading_module, "load_file"):
+
                 def load_file_utf8(path):
                     """使用 UTF-8 编码读取文件，修复 Windows 上的编码问题"""
-                    with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                    with open(path, "r", encoding="utf-8", errors="replace") as f:
                         return f.read()
+
                 # 直接替换函数
                 reloading_module.load_file = load_file_utf8
                 return True
         except Exception as e:
             print(f"警告: 无法修复 reloading 库的编码问题: {e}")
             return False
-    
+
     # 先导入 reloading 包
     import reloading
+
     # 修补模块
     if patch_reloading_module():
         print("已修复 reloading 库的编码问题")
-    
+
 from reloading import reloading
 
 # 导入装饰器后再次确保修补（防止模块被重新加载）
-if sys.platform == 'win32':
+if sys.platform == "win32":
     patch_reloading_module()
-from selenium.webdriver import Edge
+from selenium.webdriver import Chrome, Edge
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.webdriver.edge.service import Service
-from selenium.webdriver.edge.options import Options
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from selenium.webdriver.chrome.service import Service as edge_service
+from selenium.webdriver.chrome.options import Options as edge_options
+from selenium.webdriver.edge.service import Service as chrome_service
+from selenium.webdriver.edge.options import Options as chrome_options
 from openai import OpenAI
 
 from secret import api_key
@@ -62,17 +68,33 @@ from secret import api_key
 with open("./config.json") as f:
     config = json.load(f)
 
-provider = ["deepseek", "siliconflow"][0]  # 切换平台, 须在config.json文件中平台相关配置
+provider = ["deepseek", "siliconflow"][1]  # 切换平台, 须在config.json文件中平台相关配置
 base_url = config[provider]["base_url"]
 model_name = config[provider]["model_name"]
+brower = input("浏览器选择 (默认Edge，输入0使用Chrome):")
+if brower == 0:
+    print("正在启动Chrome")
 
-print("正在启动浏览器")
-options = Options()
-options.add_argument("--disable-logging")
-options.add_argument("--log-level=OFF")
-# 使用本地的 msedgedriver.exe
-driver_path = os.path.join(os.path.dirname(__file__), "msedgedriver.exe")
-driver = Edge(service=Service(executable_path=driver_path, log_path="nul"), options=options)
+    options = chrome_options()
+    options.add_argument("--disable-logging")
+    options.add_argument("--log-level=OFF")
+    # 使用本地的 msedgedriver.exe
+    driver_path = os.path.join(os.path.dirname(__file__), "chromedriver.exe")
+    driver = Chrome(
+        service=chrome_service(executable_path=driver_path, log_path="nul"),
+        options=options,
+    )
+else:
+    print("正在启动Edge")
+    options = edge_options()
+    options.add_argument("--disable-logging")
+    options.add_argument("--log-level=OFF")
+    # 使用本地的 msedgedriver.exe
+    driver_path = os.path.join(os.path.dirname(__file__), "msedgedriver.exe")
+    driver = Edge(
+        service=edge_service(executable_path=driver_path, log_path="nul"),
+        options=options,
+    )
 
 driver.get("https://onlineweb.zhihuishu.com/")
 print("已导航至智慧树学生首页, 请自行登录")
@@ -135,7 +157,10 @@ def ask():
     question_text = ""
     for question in question_elements:
         question_text += question.text + "\n"  # 将所有元素的文本合并
-    ai_question = f"请根据提供的例子生成同领域相近但不相同的问题, 要求生成{asks}个, 以下为例子:\n" + question_text
+    ai_question = (
+        f"请根据提供的例子生成同领域相近但不相同的问题, 要求生成{asks}个, 以下为例子:\n"
+        + question_text
+    )
     ai_response = ai_client.chat.completions.create(
         model=model_name,
         messages=[
@@ -170,10 +195,12 @@ def ask():
     if min_delay < 0 or max_delay < 0:
         print("时间间隔不能为负数，使用默认值（2-5秒）")
         min_delay, max_delay = 2.0, 5.0
-    delay_times = [random.uniform(min_delay, max_delay) for _ in range(len(questions_list))]
+    delay_times = [
+        random.uniform(min_delay, max_delay) for _ in range(len(questions_list))
+    ]
     total_time = sum(delay_times)
     print(f"\n已为每个操作生成随机时间间隔（{min_delay:.1f}-{max_delay:.1f}秒）")
-    print(f"预计总操作时间: {total_time:.2f}秒 ({total_time/60:.2f}分钟)")
+    print(f"预计总操作时间: {total_time:.2f}秒 ({total_time / 60:.2f}分钟)")
     match input("确认开始自动提问? [Y/n]: ").upper():
         case "Y" | "":
             pass
@@ -185,11 +212,19 @@ def ask():
             if not check():
                 print(f"无法找到问答页面，跳过问题: {question}")
                 continue
-            WebDriverWait(driver, 2.5).until(EC.element_to_be_clickable((By.CLASS_NAME, "ask-btn"))).click()  # 打开输入框
-            WebDriverWait(driver, 1.5).until(EC.element_to_be_clickable((By.TAG_NAME, "textarea"))).send_keys(question)
+            WebDriverWait(driver, 2.5).until(
+                EC.element_to_be_clickable((By.CLASS_NAME, "ask-btn"))
+            ).click()  # 打开输入框
+            WebDriverWait(driver, 1.5).until(
+                EC.element_to_be_clickable((By.TAG_NAME, "textarea"))
+            ).send_keys(question)
             check_CAPTCHA()
             time.sleep(2)
-            WebDriverWait(driver, 1.5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".up-btn.ZHIHUISHU_QZMD.set-btn"))).click()
+            WebDriverWait(driver, 1.5).until(
+                EC.element_to_be_clickable(
+                    (By.CSS_SELECTOR, ".up-btn.ZHIHUISHU_QZMD.set-btn")
+                )
+            ).click()
             check_CAPTCHA()
             print(f"成功提问: {question}")
             time.sleep(delay)
@@ -218,7 +253,9 @@ def answer():
         return
     replies = end - start + 1
     print(f"\n正在获取页面中第{start}~{end}个问题并发给AI分析, 题目列表如下:")
-    question_elements = driver.find_elements(By.CLASS_NAME, "question-content")[start : end + 1]
+    question_elements = driver.find_elements(By.CLASS_NAME, "question-content")[
+        start : end + 1
+    ]
     question_text = ""
     question_title = []
     for question in question_elements:
@@ -237,7 +274,11 @@ def answer():
         ],
         temperature=0.2,
     )
-    answers_list = ai_response.choices[0].message.content.replace("\n\n", "\n").split("\n")[:replies]
+    answers_list = (
+        ai_response.choices[0]
+        .message.content.replace("\n\n", "\n")
+        .split("\n")[:replies]
+    )
     print("\n以下为AI生成的回答:")
     for answer in answers_list:
         print(answer)
@@ -265,10 +306,12 @@ def answer():
     if min_delay < 0 or max_delay < 0:
         print("时间间隔不能为负数，使用默认值（2-5秒）")
         min_delay, max_delay = 2.0, 5.0
-    delay_times = [random.uniform(min_delay, max_delay) for _ in range(len(answers_list))]
+    delay_times = [
+        random.uniform(min_delay, max_delay) for _ in range(len(answers_list))
+    ]
     total_time = sum(delay_times)
     print(f"\n已为每个操作生成随机时间间隔（{min_delay:.1f}-{max_delay:.1f}秒）")
-    print(f"预计总操作时间: {total_time:.2f}秒 ({total_time/60:.2f}分钟)")
+    print(f"预计总操作时间: {total_time:.2f}秒 ({total_time / 60:.2f}分钟)")
     match input("确认开始自动回答? [Y/n]: ").upper():
         case "Y" | "":
             pass
@@ -290,16 +333,24 @@ def answer():
                     new_page = window
             driver.switch_to.window(new_page)
             try:
-                WebDriverWait(driver, 2).until(EC.element_to_be_clickable((By.CLASS_NAME, "my-answer-btn"))).click()  # 打开输入框
+                WebDriverWait(driver, 2).until(
+                    EC.element_to_be_clickable((By.CLASS_NAME, "my-answer-btn"))
+                ).click()  # 打开输入框
             except Exception:
                 print(f"本题无法回答, 可能是已经回答过, 题目: {question}")
                 driver.close()
                 driver.switch_to.window(ori_page)
                 continue
-            WebDriverWait(driver, 1.5).until(EC.element_to_be_clickable((By.TAG_NAME, "textarea"))).send_keys(answer)
+            WebDriverWait(driver, 1.5).until(
+                EC.element_to_be_clickable((By.TAG_NAME, "textarea"))
+            ).send_keys(answer)
             check_CAPTCHA()
             time.sleep(2)
-            WebDriverWait(driver, 1.5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".up-btn.ZHIHUISHU_QZMD.set-btn"))).click()
+            WebDriverWait(driver, 1.5).until(
+                EC.element_to_be_clickable(
+                    (By.CSS_SELECTOR, ".up-btn.ZHIHUISHU_QZMD.set-btn")
+                )
+            ).click()
             check_CAPTCHA()
             print(f"成功回答问题: {question}")
             driver.close()

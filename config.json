@@ -5,6 +5,6 @@
     },
     "siliconflow": {
         "base_url": "https://api.siliconflow.cn/v1",
-        "model_name": "deepseek-ai/DeepSeek-V3"
+        "model_name": "deepseek-ai/DeepSeek-V3.2"
     }
 }
