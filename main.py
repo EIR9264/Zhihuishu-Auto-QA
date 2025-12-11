@@ -67,12 +67,21 @@ with open("./config.json") as f:
 provider = ["deepseek", "siliconflow"][1]  # 切换平台, 须在config.json文件中平台相关配置
 base_url = config[provider]["base_url"]
 model_name = config[provider]["model_name"]
-brower = input("浏览器选择 (默认Edge，输入0使用Chrome):")
+print("浏览器选择: [1] Edge  [0] Chrome")
+brower = input("Input:")
 if brower.strip() == "0":
     print("正在启动Chrome")
     options = chrome.options.Options()
     options.add_argument("--disable-logging")
     options.add_argument("--log-level=OFF")
+    # 彻底屏蔽控制台的 Selenium 日志
+    options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
+    # 禁止 Chrome 尝试连接 Google 的后台服务
+    options.add_argument("--disable-background-networking")
+    options.add_argument("--disable-sync")
+    options.add_argument("--disable-client-side-phishing-detection")
+    options.add_argument("--no-first-run")
     # 使用本地的 chromedriver.exe
     driver_path = os.path.join(os.path.dirname(__file__), "chromedriver.exe")
     driver = Chrome(
